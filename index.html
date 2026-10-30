@@ -138,9 +138,10 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
   <section class="card voice" id="voiceBox">
     <div class="vh"><span class="vi" aria-hidden="true">&#9654;</span><div><b>Голосовое от Таисии</b><span class="vs" id="vsub">Послушайте сначала. Бесплатно.</span></div></div>
     <audio id="voice" controls preload="metadata" style="width:100%;margin:12px 0 10px">
-      <source src="golos.m4a" type="audio/mp4">
-      <source src="golos.mp3" type="audio/mpeg">
+      <source src="golos.mp3?v=2" type="audio/mpeg">
+      <source src="golos.m4a?v=2" type="audio/mp4">
     </audio>
+    <p class="hint" style="margin:0 0 10px"><a href="golos.mp3?v=2" target="_blank" rel="noopener">Не играет? Открыть запись отдельно</a></p>
     <ul class="vl">
       <li>Зачем нужен этот календарь и что он даёт</li>
       <li>Зачем нужны общие и личные энергии</li>
@@ -509,7 +510,7 @@ function setHero(n) {
 
 
 // ===== витрина: пробный подбор, согласия, переход к оплате =====
-const PAY_URL = 'https://payform.ru/5ecTILV/';
+const PAY_URL = 'https://payform.ru/4dcUKuZ/';
 const BIRTH_KEY = 'podbor_birth_v1', DEMO_KEY = 'podbor_demo';
 let demoDone = false;
 const demoUsed = () => { try { if (localStorage.getItem(DEMO_KEY) === '1') return true; } catch (e) {} return demoDone; };
