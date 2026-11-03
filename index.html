@@ -119,6 +119,13 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
 .voice .vs { color: var(--ink-soft); font-size: 14px; }
 .voice .vl { margin: 0; padding-left: 20px; font-size: 15px; }
 .voice .vl li { margin-bottom: 3px; }
+
+.more { margin: 2px 4px 14px; font-size: 14px; color: var(--ink-soft); line-height: 1.9; }
+.more b { color: var(--ink); font-weight: 600; margin-right: 4px; }
+.chip { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px; margin: 0 4px 0 0; color: var(--ink); font-size: 14px; }
+.chip i { font-style: normal; color: var(--ink-soft); font-size: 12px; margin-left: 5px; }
+
+.notice.prompt { background: var(--card); border: 1px solid var(--gold-line); border-left: 4px solid var(--gold); }
 </style>
 </head>
 <body>
@@ -241,30 +248,48 @@ const DAY_LINE = {
 };
 
 // days — допустимые общие дни по важности; monthBad — нежелательные месяцы; monthNeutral — нейтральные (если время терпит);
-// prefMonths — лучшие месяцы по порядку; partner: true | 'optional'; y8 — правило года 8
+// ЕДИНАЯ ЛОГИКА для каждого запроса: 1) личный год, 2) личный месяц, 3) только потом общий день.
+//   years: { C: [...], X: [...] } — годы с условием (подходят только месяцы condMonths) и неподходящие; остальные годы идеальны
+//   hardYears + urgentWindow — год, в который не подбираем совсем; срочно только в окне (месяцы и общие дни)
+//   monthBad / monthNeutral — нежелательные и нейтральные месяцы для идеальных годов
+//   days — допустимые общие дни; prefMonths — лучшие месяцы; partner: true | 'optional'
 const SCEN = {
-  contract: { name: 'Подписать договор', days: [6, 3, 8], monthBad: [1, 9],
+  contract: { name: 'Подписать договор', days: [6, 3, 8], monthBad: [1, 9], dayTier: { 8: 2 },
     why: 'Хорошо подписывать документы и оформлять сделки.' },
-  property: { name: 'Купить квартиру или машину', days: [6, 3, 8], monthBad: [4, 7, 9],
+  property: { name: 'Купить квартиру или машину', days: [6, 3, 8], monthBad: [4, 7, 9], years: { C: [4, 7, 9] },
+    yearNeutralText: 'В вашем личном году 4, 7 или 9 это возможно только в лучшие месяцы. Если время терпит, лучше дождаться идеального года: 1, 2, 3, 5, 6 или 8.',
     why: 'Хорошо оформлять сделки и крупные покупки.' },
-  sale: { name: 'Выставить на продажу', days: [6, 3, 8], monthBad: [2, 7, 9], monthNeutral: [1], prefMonths: [5],
+  sale: { name: 'Выставить на продажу', days: [6, 3, 8], monthBad: [2, 7, 9], monthNeutral: [1], prefMonths: [5], years: { C: [4, 7] },
+    yearNeutralText: 'В вашем личном году 4 или 7 это возможно только в лучшие месяцы. Если время терпит, лучше дождаться идеального года: 1, 2, 3, 5, 6, 8 или 9.',
+    yearPrompt: { 9: 'Год завершений хорошо подходит, чтобы продать то, что отслужило своё.' },
     why: 'Хорошо выставлять на продажу и оформлять сделки.' },
-  prepay: { name: 'Внести деньги или предоплату', days: [6, 3, 8], monthBad: [4, 7],
+  prepay: { name: 'Внести деньги или предоплату', days: [6, 3, 8], monthBad: [4, 7], years: { C: [4, 7, 9] },
+    yearNeutralText: 'В вашем личном году 4, 7 или 9 это возможно только в лучшие месяцы. Если время терпит, лучше дождаться идеального года: 1, 2, 3, 5, 6 или 8.',
     why: 'Хорошо вносить деньги и оформлять предоплату.' },
   learning: { name: 'Купить обучение', days: [3, 6, 8], monthBad: [7], monthNeutral: [1, 5],
     why: 'Хорошо вкладываться в знания и оформлять обучение.' },
-  credit: { name: 'Оформить кредит или рассрочку', days: [6, 3], monthBad: [7, 8], y8: true,
+  credit: { name: 'Оформить кредит или рассрочку', days: [6, 3], monthBad: [7, 8], hardYears: [8], urgentWindow: { months: [3, 6], days: [3, 6] },
+    yearPrompt: { 6: 'Проверьте: не берёте ли вы лишний кредит? И точно ли решение принято не эмоционально, не из «хочу-хочу-хочу», как ребёнок? Шестёрка склонна к крайностям в тратах и роскоши. Если решение рациональное, берите. Если чувствуете, что это может быть слишком, лучше отказаться. Ответственность за решение остаётся за вами: даты работают, когда решение зрелое.' },
     why: 'Подходит для банка и кредитных вопросов.', dayWhy: { 6: 'Кредит в этот день закрывается быстро и легко.' } },
-  ip: { name: 'Зарегистрировать ИП', days: [6, 3, 8], monthBad: [2, 4, 7, 9], monthNeutral: [5], prefMonths: [1],
-    why: 'Хорошо запускать своё дело и оформлять регистрацию.' },
-  wedding: { name: 'Свадьба', days: [6, 3, 8], monthBad: [7, 9], y8: true, partner: true,
+  ip: { name: 'Зарегистрировать ИП', days: [6, 3, 8], years: { C: [2, 4, 7, 8], X: [9] }, condMonths: [1, 3, 5, 6, 8],
+    monthBad: [], monthNeutral: [], prefMonths: [1], blockBad: true,
+    why: 'Хорошо запускать своё дело и оформлять регистрацию.',
+    neutralText: 'В вашем личном году регистрация ИП возможна в этом месяце, но если время терпит, лучше дождаться идеального периода: личных годов 1, 3, 5 или 6.',
+    badText: 'Для регистрации ИП этот период не рекомендован: в личный год 9 лучше подождать следующего года, а в годы 2, 4, 7 и 8 подходят только личные месяцы 1, 3, 5, 6 и 8. Если ждать нельзя, это лучший из возможных дней.',
+    waitText: 'В выбранный период регистрировать ИП не рекомендовано: в личный год 9 лучше подождать следующего года, а в годы 2, 4, 7 и 8 подходят только личные месяцы 1, 3, 5, 6 и 8. Если ждать нельзя, включите «Срочно и важно».' },
+  wedding: { name: 'Свадьба', days: [6, 3, 8], monthBad: [7, 9], hardYears: [8], urgentWindow: { months: [3, 6], days: [3, 6] }, partner: true,
+    years: { C: [9] }, lateYear: { 9: 10 },
+    yearNeutralText: 'В личный год 9 свадьбу хорошо бы отложить. Подходят только лучшие месяцы и общие дни 3, 6, 8. Если хотите супер идеально, дождитесь октября или года 1.',
+    lateText: 'С октября года 9 уже работает энергия следующего года: свадьба возможна, это «можно, хорошо» при общих днях 3, 6, 8. Если хотите супер идеально, дождитесь года 1.',
     why: 'Хорошо заключать брак.' },
   divorce: { name: 'Подать на развод', days: [6, 3, 8], monthBad: [2, 4, 7], monthNeutral: [1, 8], prefMonths: [3, 5, 6, 9], blockBad: true,
+    yearPrompt: { 2: 'Проверьте: решение принято не на эмоциях? Год Луны чувствителен, и в нём легко разорвать отношения на волне чувств. Если решение взвешенное, лучше сделать это в эти месяцы и даты.' },
     why: 'Хорошо принимать решение через анализ, а не на эмоциях.',
     badText: 'В этом месяце подавать на развод не рекомендовано: лучше дождаться личного месяца 3, когда решение принимается через анализ, а не на эмоциях. Если ждать нельзя, это лучший из возможных дней.',
     waitText: 'В выбранный период подавать на развод не рекомендовано: лучше дождаться личного месяца 3, когда решение принимается через анализ, а не на эмоциях. Если ждать нельзя, включите «Срочно и важно».' },
-  surgery: { name: 'Операция', days: [6, 3, 8], monthBad: [4, 7],
-    why: 'Хороший день для операции — по согласованию с врачом.' }
+  surgery: { name: 'Операция', days: [6, 3, 8], monthBad: [4, 7], years: { C: [7] }, condMonths: [3, 6, 8], prefMonths: [3, 6, 8],
+    why: 'Хороший день для операции — по согласованию с врачом.',
+    yearNeutralText: 'В личный год 7 операция допустима только в месяцы 3, 6 и 8 и в общие дни 3, 6 и 8. Если по показаниям операцию перенести нельзя, делаем в этот день. Если можно, лучше выбрать период вне года 7.' }
 };
 const YEAR_NOTE = {
   1: 'Личный год 1 — год старта: опирайтесь на ясное намерение и план.',
@@ -290,14 +315,14 @@ function parseBirth(str) {
 function person(b, date) {
   const Y = date.getFullYear(), M = date.getMonth() + 1, D = date.getDate();
   const py = personalYear(b.d, b.m, Y), pm = personalMonth(py, M);
-  return { py, pm, pd: personalDay(pm, D) };
+  return { py, pm, pd: personalDay(pm, D), cm: M };
 }
 
 function candidates(scenKey, births, from, to, urgent) {
   const sc = SCEN[scenKey], out = [];
   const cur = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  const monthGrade = pm => sc.monthBad.includes(pm) ? 'B' : (sc.monthNeutral || []).includes(pm) ? 'N' : 'A';
+  const personGrade = p => personGradeOf(sc, p);
   let guard = 0;
   while (cur <= end && guard++ < 800) {
     const D = cur.getDate();
@@ -305,18 +330,19 @@ function candidates(scenKey, births, from, to, urgent) {
       const gd = generalDay(D, cur.getMonth() + 1, cur.getFullYear());
       if (sc.days.includes(gd)) {
         const people = births.map(b => person(b, cur));
-        const y8people = sc.y8 ? people.filter(p => p.py === 8) : [];
+        const hardP = sc.hardYears ? people.filter(p => sc.hardYears.includes(p.py)) : [];
         let ok = true, grade = 'A';
-        if (y8people.length) {
+        if (hardP.length) {
+          const w = sc.urgentWindow;
           if (!urgent) ok = false;
-          else if (![3, 6].includes(gd)) ok = false;
-          else if (y8people.some(p => ![3, 6].includes(p.pm))) ok = false;
+          else if (!w.days.includes(gd)) ok = false;
+          else if (hardP.some(p => !w.months.includes(p.pm))) ok = false;
           else grade = 'U';
         }
         if (ok && grade !== 'U') {
-          people.forEach(p => { const g = monthGrade(p.pm); if (g === 'B') grade = 'B'; else if (g === 'N' && grade === 'A') grade = 'N'; });
+          people.forEach(p => { const g = personGrade(p); if (g === 'B') grade = 'B'; else if (g === 'N' && grade === 'A') grade = 'N'; });
         }
-        if (ok) out.push({ date: new Date(cur), gd, people, grade, y8: y8people.length > 0 });
+        if (ok) out.push({ date: new Date(cur), gd, people, grade, y8: hardP.length > 0 });
       }
     }
     cur.setDate(cur.getDate() + 1);
@@ -324,17 +350,53 @@ function candidates(scenKey, births, from, to, urgent) {
   return out;
 }
 
+function okMonths(sc) {
+  if (sc.condMonths) return sc.condMonths;
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(m => !sc.monthBad.includes(m) && !(sc.monthNeutral || []).includes(m));
+}
+function personGradeOf(sc, p) {
+  const y = sc.years || {};
+  if ((y.X || []).includes(p.py)) return 'B';                                            // 1) год не подходит
+  const ly = sc.lateYear && sc.lateYear[p.py];
+  if (ly && p.cm >= ly) return sc.monthBad.includes(p.pm) ? 'B' : 'N';                      // 1) конец года: уже работает энергия следующего
+  if ((y.C || []).includes(p.py)) return okMonths(sc).includes(p.pm) ? 'N' : 'B';          // 1) год с условием -> 2) только лучшие месяцы
+  return sc.monthBad.includes(p.pm) ? 'B' : (sc.monthNeutral || []).includes(p.pm) ? 'N' : 'A'; // 2) месяц
+}
+function reasonOf(sc, p) {
+  const y = sc.years || {};
+  if ((y.X || []).includes(p.py)) return 'личный год ' + p.py;
+  if ((y.C || []).includes(p.py)) return 'личный год ' + p.py + ', личный месяц ' + p.pm;
+  return 'личный месяц ' + p.pm;
+}
+
+// из дат одного периода: несколько лучших карточек (с разными общими днями) и список остальных
+function chooseTop(items, n, cmp, tier) {
+  const sorted = items.slice().sort(cmp);
+  const cards = [], used = new Set();
+  const best = Math.min(...sorted.map(tier));
+  for (const c of sorted) {                       // 1) по одной дате на каждый общий день лучшего уровня
+    if (cards.length >= n) break;
+    if (tier(c) === best && !used.has(c.gd)) { cards.push(c); used.add(c.gd); }
+  }
+  for (const c of sorted) {                       // 2) добираем остальными по порядку
+    if (cards.length >= n) break;
+    if (!cards.includes(c)) cards.push(c);
+  }
+  const byDate = (x, y) => x.date - y.date;
+  return { cards: cards.sort(byDate), rest: sorted.filter(c => !cards.includes(c)).sort(byDate) };
+}
+
 function pick(scenKey, births, from, to, urgent) {
   const sc = SCEN[scenKey];
   const all = candidates(scenKey, births, from, to, urgent);
-  const rank = c => sc.days.indexOf(c.gd);
+  const tier = c => (sc.dayTier && sc.dayTier[c.gd]) || 1;
   const mr = c => { const i = (sc.prefMonths || []).indexOf(c.people[0].pm); return i < 0 ? 99 : i; };
   const byDate = (a, b) => a.date - b.date;
   const q = c => ({ A: 0, N: 1, B: 2, U: 3 }[c.grade]);
-  const byQuality = (a, b) => q(a) - q(b) || mr(a) - mr(b) || rank(a) - rank(b) || byDate(a, b);
-  const hasY8 = sc.y8 && births.some(b => {
+  const byQuality = (a, b) => q(a) - q(b) || tier(a) - tier(b) || mr(a) - mr(b) || byDate(a, b);
+  const hasY8 = sc.hardYears && births.some(b => {
     const d = new Date(from);
-    for (let i = 0; i < 400 && d <= to; i++) { if (person(b, d).py === 8) return true; d.setDate(d.getDate() + 1); }
+    for (let i = 0; i < 400 && d <= to; i++) { if (sc.hardYears.includes(person(b, d).py)) return true; d.setDate(d.getDate() + 1); }
     return false;
   });
   const A = all.filter(c => c.grade === 'A'), N = all.filter(c => c.grade === 'N');
@@ -345,33 +407,55 @@ function pick(scenKey, births, from, to, urgent) {
   else if (N.length) { pool = N; note = 'ok'; }
   else if (B.length && !sc.blockBad) { pool = B; note = 'neutral'; }
   else pool = [];
+  const empty = { list: [], later: [], rest: [], groups: null, skipped: [], best: null, total: all.length, grouped: false };
   if (!pool.length) {
     if (sc.blockBad && B.length) {
       const nd = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
       const ed = new Date(nd.getFullYear(), nd.getMonth(), nd.getDate() + 400);
       const l = candidates(scenKey, births, nd, ed, false);
       const good = l.filter(c => c.grade === 'A');
-      const later = (good.length ? good : l.filter(c => c.grade === 'N')).slice(0, 3);
-      return { list: [], later, best: null, note: 'wait', total: all.length, grouped: false };
+      return { ...empty, later: (good.length ? good : l.filter(c => c.grade === 'N')).slice(0, 3), note: 'wait' };
     }
-    return { list: [], later: [], best: null, note: hasY8 ? 'y8' : 'none', total: all.length, grouped: false };
+    return { ...empty, note: hasY8 ? 'y8' : 'none' };
+  }
+  const best = pool.slice().sort(byQuality)[0];
+
+  // месяцы, которые подходят хуже и поэтому не показаны, с причиной
+  const skipped = [];
+  if (!urgent) {
+    const inPool = new Set(pool), seen = new Set();
+    all.filter(c => !inPool.has(c)).forEach(c => {
+      const k = c.date.getFullYear() * 100 + c.date.getMonth();
+      if (seen.has(k)) return; seen.add(k);
+      const reasons = [];
+      c.people.forEach((pp, i) => {
+        if (personGradeOf(sc, pp) !== 'A') reasons.push((births.length > 1 && i === 1 ? 'у второго человека' : 'у вас') + ' ' + reasonOf(sc, pp));
+      });
+      skipped.push({ date: c.date, reasons });
+    });
   }
 
-  const best = pool.slice().sort(byQuality)[0];
   const days = Math.round((to - from) / 864e5) + 1;
+  const byQD = (a, b) => q(a) - q(b) || byDate(a, b);
+  const pickFn = (items, n) => {
+    if (!urgent) return chooseTop(items, n, byQuality, tier);
+    const s = items.slice().sort(byQD), cards = s.slice(0, n);     // срочно: лучшие по качеству, при равенстве ближайшие
+    return { cards: cards.sort(byDate), rest: s.slice(n).sort(byDate) };
+  };
+
   if (days <= 35) {
-    const flat = urgent ? pool.slice().sort(byDate).slice(0, 5) : pool.slice().sort(byQuality).slice(0, 5).sort(byDate);
-    return { list: flat, best, note, total: all.length, grouped: false };
+    const r = pickFn(pool, 5);
+    return { ...empty, list: r.cards, rest: r.rest, skipped, best, note, grouped: false };
   }
-  const per = days <= 95 ? 3 : days <= 200 ? 2 : 1;
-  const groups = new Map();
-  pool.forEach(c => { const k = c.date.getFullYear() * 100 + c.date.getMonth(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
-  const list = [];
-  [...groups.keys()].sort((a, b) => a - b).forEach(k => {
-    const g = groups.get(k).sort(urgent ? byDate : byQuality);
-    list.push(...g.slice(0, per).sort(byDate));
+  const n = days <= 200 ? 3 : 2;
+  const map = new Map();
+  pool.forEach(c => { const k = c.date.getFullYear() * 100 + c.date.getMonth(); if (!map.has(k)) map.set(k, []); map.get(k).push(c); });
+  const groups = [];
+  [...map.keys()].sort((x, y) => x - y).forEach(k => {
+    const r = pickFn(map.get(k), n);
+    groups.push({ key: k, cards: r.cards, rest: r.rest });
   });
-  return { list, best, note, total: all.length, grouped: true };
+  return { ...empty, list: groups.flatMap(g => g.cards), groups, skipped, best, note, grouped: true };
 }
 // ===== LOGIC END =====
 
@@ -420,6 +504,7 @@ const GRADE_LABEL = (g, urg) => g === 'A' ? 'Идеально' : g === 'N' ? 'П
 
 function textFor(c, sc, two, showMonth, showYear) {
   const me = c.people[0], parts = [];
+  let yearTextUsed = false;
   parts.push(DAY_LINE[c.gd] + ' ' + ((sc.dayWhy && sc.dayWhy[c.gd]) || sc.why));
   if (two) {
     const o = c.people[1];
@@ -427,13 +512,19 @@ function textFor(c, sc, two, showMonth, showYear) {
   } else if (showMonth) {
     parts.push('Личный месяц ' + me.pm + ' — «' + MONTH_INFO[me.pm].name + '»: в фокусе — ' + MONTH_INFO[me.pm].focus + '.');
   }
-  if (c.grade === 'N') parts.push('Месяц нейтральный: если время терпит, лучше дождаться идеального месяца.');
+  if (c.grade === 'N') {
+    const yp = c.people.find(pp => sc.years && sc.years.C && sc.years.C.includes(pp.py)) || me;
+    const late = sc.lateYear && sc.lateYear[yp.py] && yp.cm >= sc.lateYear[yp.py];
+    const yc = sc.years && sc.years.C && sc.years.C.includes(yp.py);
+    yearTextUsed = !!((late && sc.lateText) || (yc && sc.yearNeutralText));
+    parts.push((late && sc.lateText) || (yc && sc.yearNeutralText) || sc.neutralText || 'Месяц нейтральный: если время терпит, лучше дождаться идеального месяца.');
+  }
   if (c.grade === 'B' && sc.badText) parts.push(sc.badText);
   else if (c.grade === 'B') parts.push(scKey === 'surgery'
     ? 'Месяц не самый благоприятный. Если по показаниям операцию перенести нельзя — делаем в этот день. Если перенести можно — перенесите на более благоприятный месяц.'
     : 'Месяц не самый благоприятный для этого, но общий день это компенсирует.');
   if (c.grade === 'U') parts.push('Это срочный вариант: в личном году 8 подходят только личные месяцы 3 и 6 и общие дни 3 и 6.');
-  if (scKey !== 'surgery' && showYear) parts.push(YEAR_NOTE[me.py]);
+  if (scKey !== 'surgery' && showYear && !yearTextUsed && !(sc.yearPrompt && sc.yearPrompt[me.py])) parts.push(YEAR_NOTE[me.py]);   // общая фраза года не нужна там, где уже есть особая
   return parts.join(' ');
 }
 
@@ -468,6 +559,12 @@ function render(res, f, tail) {
   setHero(py0);
   let h = '<div class="yearcard">' + ringSvg(py0) + '<div><div class="t">Ваш личный год ' + years[0] + ': ' + py0 + ' — ' + YEAR_TITLE[py0] + '</div>' +
     (years.length > 1 ? '<div class="s">' + years.slice(1).map(y => 'В ' + y + ' году — ' + personalYear(births[0].d, births[0].m, y)).join('; ') + '</div>' : '') + '</div></div>';
+  if (sc.yearPrompt) {
+    const shown = new Set(), cs = [...(res.list || []), ...(res.later || [])];
+    cs.forEach(c => c.people.forEach(pp => {
+      if (sc.yearPrompt[pp.py] && !shown.has(pp.py)) { shown.add(pp.py); h += '<p class="notice prompt">' + sc.yearPrompt[pp.py] + '</p>'; }
+    }));
+  }
   if (res.note === 'ok') h += '<p class="notice">Идеальных месяцев в вашем окне нет, поэтому показываю подходящие: если время терпит, лучше дождаться идеального месяца.</p>';
   if (res.note === 'neutral') h += '<p class="notice">Идеальных дат в вашем окне нет, поэтому показываю лучшие из возможных: общий день сильный, а месяц компенсируется им.</p>';
   if (res.note === 'y8') h += '<p class="notice warn">В личный год 8 это лучше не делать. Если дело срочное, включите «Срочно и важно» — подберу даты в личные месяцы 3 и 6 и в общие дни 3 и 6.</p>';
@@ -479,21 +576,29 @@ function render(res, f, tail) {
       res.later.forEach(c => { h += cardHtml(c, false, sc, two, true, false); });
     }
   }
-  const seen = new Set(); let first = true, lastKey = null;
-  res.list.forEach(c => {
-    const me = c.people[0];
-    if (res.grouped) {
-      const key = c.date.getFullYear() + ':' + c.date.getMonth();
-      if (key !== lastKey) {
-        lastKey = key;
-        const mn = cap(c.date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })).replace(/\s?г\.$/, '');
-        h += '<h2 class="mh">' + mn + '<small>личный месяц ' + me.pm + ' — ' + MONTH_INFO[me.pm].name + '</small></h2>';
-      }
-    }
-    h += cardHtml(c, urg, sc, two, !seen.has(me.pm + ':' + c.date.getMonth()), first);
-    seen.add(me.pm + ':' + c.date.getMonth()); first = false;
-  });
-  if (scKey === 'surgery') h += '<p class="notice">Дату операции назначает врач. Календарь выбирает лучшие из дат, которые врач допускает. Если операция срочная, не откладывайте её ради даты.</p>';
+  const my = d => cap(d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })).replace(/\s?г\.$/, '');
+  const restHtml = rest => (!rest || !rest.length) ? '' :
+    '<p class="more"><b>Ещё подходящие даты:</b> ' + rest.map(c => '<span class="chip">' + c.date.getDate() + '<i>общий ' + c.gd + '</i></span>').join('') + '</p>';
+  let first = true;
+  if (res.groups) {
+    res.groups.forEach(g => {
+      const me = g.cards[0].people[0];
+      h += '<h2 class="mh">' + my(g.cards[0].date) + '<small>личный месяц ' + me.pm + ' — ' + MONTH_INFO[me.pm].name + '</small></h2>';
+      g.cards.forEach((c, i) => { h += cardHtml(c, urg, sc, two, i === 0, first); first = false; });
+      h += restHtml(g.rest);
+    });
+  } else {
+    const seen = new Set();
+    res.list.forEach(c => {
+      const key = c.people[0].pm + ':' + c.date.getMonth();
+      h += cardHtml(c, urg, sc, two, !seen.has(key), first); seen.add(key); first = false;
+    });
+    h += restHtml(res.rest);
+  }
+  if (res.skipped && res.skipped.length) {
+    h += '<p class="notice">Не показаны месяцы, которые подходят хуже: ' + res.skipped.map(s => my(s.date) + ' (' + s.reasons.join(', ') + ')').join('; ') + '. Чтобы увидеть и их, включите «Срочно и важно».</p>';
+  }
+  if (scKey === 'surgery') h += '<p class="notice">Дату операции и её срочность определяет врач. Если врач говорит «оперируем сегодня», это не обсуждается. Календарь помогает выбрать лучшие из дат, которые врач допускает.</p>';
   if (tail) h += tail;
   const shown = res.list.length + (res.later ? res.later.length : 0);
   if (shown) h += '<div class="closing">' + (shown > 1 ? 'Эти даты наилучшие' : 'Эта дата наилучшая') + ' именно для вас. У другого человека может быть другая энергия года и месяца.</div>';
@@ -547,7 +652,7 @@ $('f').addEventListener('submit', e => {
   }
   const extra = res.list.length - 1;
   const tail = '<div class="lock"><b>' + (extra > 0 ? 'Ещё ' + extra + ' ' + plural(extra, 'дата', 'даты', 'дат') + ' на ваш период' : 'Это был пробный подбор') + '</b><p>Полный доступ — 990 ₽: календарь на 2027 год и подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
-  render({ ...res, list: [res.best], grouped: false }, f, tail);
+  render({ ...res, list: [res.best], groups: null, rest: [], skipped: [], grouped: false }, f, tail);
   markDemo();
 });
 
