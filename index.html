@@ -650,9 +650,9 @@ $('f').addEventListener('submit', e => {
     $('out').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
-  const extra = res.list.length - 1;
-  const tail = '<div class="lock"><b>' + (extra > 0 ? 'Ещё ' + extra + ' ' + plural(extra, 'дата', 'даты', 'дат') + ' на ваш период' : 'Это был пробный подбор') + '</b><p>Полный доступ — 990 ₽: календарь на 2027 год и подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
-  render({ ...res, list: [res.best], groups: null, rest: [], skipped: [], grouped: false }, f, tail);
+  // первый подбор показывает ВЕСЬ результат, как в полной версии; платным становится каждый следующий запрос
+  const tail = '<div class="lock"><b>Это был пробный подбор</b><p>Полный доступ — 990 ₽: календарь на 2027 год и подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
+  render(res, f, tail);
   markDemo();
 });
 
