@@ -126,6 +126,10 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
 .chip i { font-style: normal; color: var(--ink-soft); font-size: 12px; margin-left: 5px; }
 
 .notice.prompt { background: var(--card); border: 1px solid var(--gold-line); border-left: 4px solid var(--gold); }
+
+.mh.soft { margin-top: 28px; }
+.more.soft { background: var(--card); border: 1px dashed var(--gold-line); border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; line-height: 1.8; }
+.more.soft span:not(.chip) { color: var(--ink-soft); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -407,7 +411,7 @@ function pick(scenKey, births, from, to, urgent) {
   else if (N.length) { pool = N; note = 'ok'; }
   else if (B.length && !sc.blockBad) { pool = B; note = 'neutral'; }
   else pool = [];
-  const empty = { list: [], later: [], rest: [], groups: null, skipped: [], best: null, total: all.length, grouped: false };
+  const empty = { list: [], later: [], rest: [], soft: [], groups: null, skipped: [], best: null, total: all.length, grouped: false };
   if (!pool.length) {
     if (sc.blockBad && B.length) {
       const nd = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
@@ -421,17 +425,24 @@ function pick(scenKey, births, from, to, urgent) {
   const best = pool.slice().sort(byQuality)[0];
 
   // месяцы, которые подходят хуже и поэтому не показаны, с причиной
-  const skipped = [];
+  const skipped = [], soft = [];
   if (!urgent) {
-    const inPool = new Set(pool), seen = new Set();
+    const inPool = new Set(pool), seen = new Map(), seenSoft = new Map();
+    const reasonsOf = c => {
+      const rs = [];
+      c.people.forEach((pp, i) => {
+        if (personGradeOf(sc, pp) !== 'A') rs.push((births.length > 1 && i === 1 ? 'у второго человека' : 'у вас') + ' ' + reasonOf(sc, pp));
+      });
+      return rs;
+    };
     all.filter(c => !inPool.has(c)).forEach(c => {
       const k = c.date.getFullYear() * 100 + c.date.getMonth();
-      if (seen.has(k)) return; seen.add(k);
-      const reasons = [];
-      c.people.forEach((pp, i) => {
-        if (personGradeOf(sc, pp) !== 'A') reasons.push((births.length > 1 && i === 1 ? 'у второго человека' : 'у вас') + ' ' + reasonOf(sc, pp));
-      });
-      skipped.push({ date: c.date, reasons });
+      if (c.grade === 'N' && pool === A) {                       // «если время терпит»: подходит, но не идеально
+        if (!seenSoft.has(k)) { const g = { date: c.date, reasons: reasonsOf(c), items: [] }; seenSoft.set(k, g); soft.push(g); }
+        seenSoft.get(k).items.push(c);
+      } else if (!seen.has(k)) {                                 // остальное не показываем, но объясняем почему
+        seen.set(k, 1); skipped.push({ date: c.date, reasons: reasonsOf(c) });
+      }
     });
   }
 
@@ -445,7 +456,7 @@ function pick(scenKey, births, from, to, urgent) {
 
   if (days <= 35) {
     const r = pickFn(pool, 5);
-    return { ...empty, list: r.cards, rest: r.rest, skipped, best, note, grouped: false };
+    return { ...empty, list: r.cards, rest: r.rest, soft, skipped, best, note, grouped: false };
   }
   const n = days <= 200 ? 3 : 2;
   const map = new Map();
@@ -455,7 +466,7 @@ function pick(scenKey, births, from, to, urgent) {
     const r = pickFn(map.get(k), n);
     groups.push({ key: k, cards: r.cards, rest: r.rest });
   });
-  return { ...empty, list: groups.flatMap(g => g.cards), groups, skipped, best, note, grouped: true };
+  return { ...empty, list: groups.flatMap(g => g.cards), groups, soft, skipped, best, note, grouped: true };
 }
 // ===== LOGIC END =====
 
@@ -594,6 +605,13 @@ function render(res, f, tail) {
       h += cardHtml(c, urg, sc, two, !seen.has(key), first); seen.add(key); first = false;
     });
     h += restHtml(res.rest);
+  }
+  if (res.soft && res.soft.length) {
+    h += '<h2 class="mh soft">Если время терпит<small>Эти даты тоже подходят, но год или месяц у них не идеальный. Если можете подождать, выберите даты выше.</small></h2>';
+    res.soft.forEach(g => {
+      h += '<p class="more soft"><b>' + my(g.date) + '</b> <span>(' + g.reasons.join(', ') + ')</span><br>' +
+        g.items.map(c => '<span class="chip">' + c.date.getDate() + '<i>общий ' + c.gd + '</i></span>').join('') + '</p>';
+    });
   }
   if (res.skipped && res.skipped.length) {
     h += '<p class="notice">Не показаны месяцы, которые подходят хуже: ' + res.skipped.map(s => my(s.date) + ' (' + s.reasons.join(', ') + ')').join('; ') + '. Чтобы увидеть и их, включите «Срочно и важно».</p>';
