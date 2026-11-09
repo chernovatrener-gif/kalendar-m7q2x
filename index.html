@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Календарь 2027 и подбор дат по личному году</title>
+<title>Твой 2027 по энергиям: календарь на год и подбор дат</title>
 <style>:root {
   --paper: #f6f4f9; --mist: #e4eaf2; --card: #ffffff; --ink: #3a2f4d; --ink-soft: #6b6280;
   --plum: #4d3d5f; --gold: #8b6a3a; --gold-line: #d9c29a; --sage: #5d8a72; --sage-bg: #e3eee7;
@@ -130,6 +130,16 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
 .mh.soft { margin-top: 28px; }
 .more.soft { background: var(--card); border: 1px dashed var(--gold-line); border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; line-height: 1.8; }
 .more.soft span:not(.chip) { color: var(--ink-soft); font-size: 13px; }
+
+.yearinfo { margin: -6px 0 18px; padding: 14px; border-radius: 14px; background: var(--sage-bg); }
+.yearbox { display: flex; gap: 14px; align-items: center; }
+.yearbox svg { flex: none; width: 64px; height: 64px; }
+.yearbox .t { font-family: var(--serif); font-size: 18px; font-weight: 700; line-height: 1.25; }
+.yearbox .s { color: var(--ink); font-size: 14.5px; margin-top: 3px; line-height: 1.45; }
+.yearinfo .hint { margin: 10px 0 0; }
+.yearinfo .nine { color: var(--ink); }
+.bonus { margin: 6px 0 12px; }
+.bonus h2 { font-family: var(--serif); font-size: 21px; margin: 0 0 2px; }
 </style>
 </head>
 <body>
@@ -142,8 +152,8 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
       <g fill="#b07a93"><circle cx="84" cy="32" r="2.6"/><circle cx="84" cy="136" r="2.6"/></g>
       <text class="num" id="heroNum" x="84" y="96" text-anchor="middle" font-size="30">2027</text>
     </svg>
-    <h1>Лучшая дата именно для тебя</h1>
-    <p class="lead">Введите дату рождения и задачу: подберу дни, которые подходят вашей энергии года и месяца.</p>
+    <h1>Твой 2027 по энергиям</h1>
+    <p class="lead">Календарь на весь год по дате рождения: личный год, каждый месяц и каждый день. А бонусом конструктор подбора дат.</p>
   </section>
 
   <section class="card voice" id="voiceBox">
@@ -165,6 +175,8 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
       <label class="l" for="birth">Ваша дата рождения</label>
       <input id="birth" type="text" inputmode="numeric" autocomplete="bday" placeholder="15.08.1984" maxlength="10">
     </div>
+    <div class="yearinfo" id="yearInfo" hidden></div>
+    <div class="bonus"><h2>Бонус: подбор дат</h2><p class="hint" style="margin:0 0 14px">Выбери, что планируешь, и период. Первый подбор бесплатный.</p></div>
     <div class="field">
         <span class="legend" id="lg">Что вы планируете?</span>
         <div class="pills" role="radiogroup" aria-labelledby="lg" id="pills"></div>
@@ -196,10 +208,10 @@ h2.sec { font-family: var(--serif); font-size: 22px; margin: 26px 4px 12px; }
   <section id="out" aria-live="polite"></section>
 
   <section class="offer" id="buy">
-    <div class="top"><div class="name">Календарь и подбор дат</div><div class="price">990&nbsp;₽</div></div>
+    <div class="top"><div class="name">Календарь на 2027 и бонус: подбор дат</div><div class="price">990&nbsp;₽</div></div>
     <ul>
       <li>Календарь на 2027 год в PDF под вашу дату рождения: описание года, каждого месяца и каждого дня</li>
-      <li>Конструктор подбора дат без лимитов: договор, сделка, свадьба, операция и другие запросы</li>
+      <li>Бонус: конструктор подбора дат без лимитов — договор, сделка, свадьба, операция, билеты, собеседование и другие запросы</li>
       <li>Доступ до 31 декабря 2027 года. Разовая оплата, без автоматических списаний</li>
     </ul>
     <p class="hint warnline">После оплаты дату рождения изменить нельзя: календарь и подбор считаются под неё. Проверьте, что дата ваша.</p>
@@ -245,6 +257,19 @@ const MONTH_INFO = {
   8: { name: 'Месяц труда', focus: 'доводить дела до результата, наводить порядок, работать объективно' },
   9: { name: 'Месяц завершения', focus: 'заботиться о здоровье, помогать без ожиданий, завершать циклы' }
 };
+
+// короткое положительное описание личного года (по описаниям из календаря)
+const YEAR_BLURB = {
+  1: 'Год новых начинаний: время смелых идей, проектов и лидерства. Закладывается фундамент на ближайшие девять лет.',
+  2: 'Год мягкости и партнёрства: хорошо укреплять связи, договариваться, развивать чуткость и интуицию.',
+  3: 'Год роста и расширения: усилия прошлых лет приносят плоды, растут знания, влияние и возможности.',
+  4: 'Год, когда можно мечтать, ставить цели и выстраивать новое будущее. Жизнь говорит знаками и совпадениями, а перемены ведут к росту.',
+  5: 'Год слов и знакомств: открываются новые связи и возможности, расширяются границы, тайное становится явным, и проще увидеть правду.',
+  6: 'Год гармонии и внутреннего сияния: жизнь вознаграждает за прежние усилия, желания исполняются, в отношениях больше любви и красоты.',
+  7: 'Год внутреннего поиска и интуиции: время услышать себя, освободиться от лишнего и заложить фундамент будущих побед.',
+  8: 'Год зрелости и результата: труд превращается в результат, опыт в капитал, приходят стабильность и профессионализм.',
+  9: 'Год очищения и зрелости: завершается цикл, уходит лишнее, наводится порядок в теле, делах и отношениях, освобождая место новому.'
+};
 const DAY_LINE = {
   3: 'Общий день 3 — сильный день для решений: работает энергия анализа и стратегии.',
   6: 'Общий день 6 — день мудрости и удачных договорённостей.',
@@ -281,6 +306,14 @@ const SCEN = {
     neutralText: 'В вашем личном году регистрация ИП возможна в этом месяце, но если время терпит, лучше дождаться идеального периода: личных годов 1, 3, 5 или 6.',
     badText: 'Для регистрации ИП этот период не рекомендован: в личный год 9 лучше подождать следующего года, а в годы 2, 4, 7 и 8 подходят только личные месяцы 1, 3, 5, 6 и 8. Если ждать нельзя, это лучший из возможных дней.',
     waitText: 'В выбранный период регистрировать ИП не рекомендовано: в личный год 9 лучше подождать следующего года, а в годы 2, 4, 7 и 8 подходят только личные месяцы 1, 3, 5, 6 и 8. Если ждать нельзя, включите «Срочно и важно».' },
+  interview: { name: 'Пройти собеседование', days: [6, 3, 8], monthBad: [2, 7, 9],
+    why: 'Хороший день для собеседования.' },
+  tickets: { name: 'Купить билеты', days: [6, 3, 8], monthBad: [2, 4, 7], monthNeutral: [1, 5], prefMonths: [3, 6, 8],
+    why: 'Хорошо покупать билеты в этот день (это день покупки, не поездки).' },
+  cosmetic: { name: 'Пойти к косметологу', days: [6, 3, 8], monthBad: [4, 7], years: { C: [7] }, condMonths: [3, 6, 8], prefMonths: [3, 6, 8],
+    why: 'Хороший день для процедуры. Если время назначил специалист, ориентируйтесь и на его рекомендации.',
+    yearNeutralText: 'В личный год 7 процедуры допустимы только в месяцы 3, 6 и 8 и в общие дни 3, 6 и 8. Если запись нельзя перенести, делаем в этот день.',
+    badText: 'Месяц не самый благоприятный. Если запись нельзя перенести, делаем в этот день. Если можно, лучше выбрать более благоприятный месяц.' },
   wedding: { name: 'Свадьба', days: [6, 3, 8], monthBad: [7, 9], hardYears: [8], urgentWindow: { months: [3, 6], days: [3, 6] }, partner: true,
     years: { C: [9] }, lateYear: { 9: 10 },
     yearNeutralText: 'В личный год 9 свадьбу хорошо бы отложить. Подходят только лучшие месяцы и общие дни 3, 6, 8. Если хотите супер идеально, дождитесь октября или года 1.',
@@ -631,6 +664,14 @@ function setHero(n) {
   el.textContent = n; el.setAttribute('font-size', long ? 30 : 46); el.setAttribute('y', long ? 96 : 100);
 }
 
+// карточка личного года: показывается сразу после ввода даты рождения
+function yearInfoHtml(b) {
+  const py = personalYear(b.d, b.m, 2027);
+  let h = '<div class="yearbox">' + ringSvg(py) + '<div><div class="t">Личный год на 2027: ' + py + ' — ' + YEAR_TITLE[py] + '</div><div class="s">' + YEAR_BLURB[py] + '</div></div></div>';
+  if (b.y <= 2008) h += '<p class="hint nine">Такой же личный год был 9 лет назад, в 2018. Вспомни 2–3 события того года и сравни с описанием в календаре.</p>';
+  return h + '<p class="hint">Подробно о годе, о каждом месяце и дне — в календаре.</p>';
+}
+
 
 // ===== витрина: пробный подбор, согласия, переход к оплате =====
 const PAY_URL = 'https://payform.ru/4dcUKuZ/';
@@ -653,6 +694,8 @@ buildPills(); initDates(); maskDate($('birth'));
 $('birth').addEventListener('input', () => {
   const b = parseBirth($('birth').value);
   setHero(b ? personalYear(b.d, b.m, 2027) : 2027);
+  const yi = $('yearInfo');
+  if (b) { yi.innerHTML = yearInfoHtml(b); yi.hidden = false; } else yi.hidden = true;
 });
 
 $('f').addEventListener('submit', e => {
@@ -664,12 +707,12 @@ $('f').addEventListener('submit', e => {
   const res = pick(scKey, f.births, f.from, f.to, f.urg);
   if (!res.list.length) { render(res, f); return; }
   if (demoUsed()) {
-    $('out').innerHTML = '<div class="lock"><b>Пробный подбор уже использован</b><p>Полный доступ — 990 ₽: календарь на 2027 год и подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
+    $('out').innerHTML = '<div class="lock"><b>Пробный подбор уже использован</b><p>Полный доступ — 990 ₽: календарь на 2027 год и бонусом подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
     $('out').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
   // первый подбор показывает ВЕСЬ результат, как в полной версии; платным становится каждый следующий запрос
-  const tail = '<div class="lock"><b>Это был пробный подбор</b><p>Полный доступ — 990 ₽: календарь на 2027 год и подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
+  const tail = '<div class="lock"><b>Это был пробный подбор</b><p>Полный доступ — 990 ₽: календарь на 2027 год и бонусом подбор дат без лимитов до 31 декабря 2027 года.</p><a class="go" href="#buy">Открыть полный доступ</a></div>';
   render(res, f, tail);
   markDemo();
 });
